@@ -1,6 +1,7 @@
 function Template() {
     this.tempHtml = '';
     this.placeHolders;
+    this.globalSearch = false;
     this.filter = {};
     this.data;
     this.ajax;
@@ -38,49 +39,55 @@ Template.prototype = {
                 if (typeof parentThis.placeHolders != "undefined") {
                     if (parentThis.placeHolders.hasOwnProperty(b)) {
                         objectKey = parentThis.placeHolders[b];
-                    } else {
-                        objectKey = b;
                     }
                 }
                 if (row.hasOwnProperty(objectKey)) {
                     return row[objectKey]
-                } else {
-                    //  console.log(b);
                 }
             });
             this.tempHtml += pureSingleItem;
         }
+        if (this.tempHtml == "") {
+            this.tempHtml = "<div class=\"alert alert-warning text-center\">No Result Found</div>"
+        }
         document.querySelector(this.tempId).innerHTML = this.tempHtml;
-
     },
-    formValue: function (formName) {
+    filterData: function (formName) {
         var parentThis = this;
-        var formELem = document.forms[formName].elements;
+        var tempSourceData = this.data;
         document.forms[formName].addEventListener('submit', function (ev) {
             ev.preventDefault();
-            var elementsName = Object.keys(this.elements);
-            for (var f = 0; f < elementsName.length; f++) {
-                if (parentThis.placeHolders.hasOwnProperty(elementsName[f])) {
-                    var currentELem = parentThis.placeHolders[elementsName[f]];
-                    // console.log(currentELem);
-                    parentThis.filter[currentELem] = this.elements[elementsName[f]].value;
-                }
-            }
-            var tempSourceData = parentThis.data;
-            for (var prop in parentThis.filter) {
-                if (parentThis.filter.hasOwnProperty(prop)) {
-                    tempSourceData = tempSourceData.filter(function (value) {
-                        var rex = new RegExp('.*' + parentThis.filter[prop].trim() + '.*', 'i');
-                        if (value.hasOwnProperty(prop)) {
-                            return value[prop].match(rex);
-                        }
-
-                    });
-                }
-            }
+            tempSourceData = parentThis.individualFilter(tempSourceData, this.elements);
             document.querySelector(parentThis.tempId).innerHTML = " ";
             parentThis.parse(tempSourceData);
         });
 
+    },
+    processForm: function (elements) {
+        var parentThis = this;
+        var retObj = {};
+        var elementsName = Object.keys(elements);
+        for (var f = 0; f < elementsName.length; f++) {
+            if (parentThis.placeHolders.hasOwnProperty(elementsName[f])) {
+                var currentELem = parentThis.placeHolders[elementsName[f]];
+                retObj[currentELem] = elements[elementsName[f]].value;
+            }
+        }
+        return retObj;
+    },
+    individualFilter: function (tempSourceData, elements) {
+        this.filter = this.processForm(elements);
+        for (var prop in this.filter) {
+            if (this.filter.hasOwnProperty(prop)) {
+                var parentThis = this;
+                tempSourceData = tempSourceData.filter(function (value) {
+                    var rex = new RegExp('.*' + parentThis.filter[prop].trim() + '.*', 'ig');
+                    if (value.hasOwnProperty(prop)) {
+                        return value[prop].match(rex);
+                    }
+                });
+            }
+        }
+        return tempSourceData;
     }
 }
