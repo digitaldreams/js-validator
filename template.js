@@ -3,7 +3,14 @@ function Template() {
     this.placeHolders;
     this.globalSearch = false;
     this.filter = {};
+    this.index = {
+        start: 0,
+        end: 0,
+    };
+    this.pagination = {};
+
     this.data;
+    this.tempData;
     this.ajax;
     this.elem;
     this.tempId;
@@ -19,7 +26,13 @@ Template.prototype = {
             }
         }
         this.elem = document.querySelector(this.tempId).innerHTML;
-        this.parse(this.data);
+        if (this.pagination.hasOwnProperty('perpage')) {
+            this.index.end = parseInt(this.pagination.perpage)
+        } else {
+            this.index.end = this.data.length;
+        }
+        this.tempData = this.data.slice(this.index.start, this.index.end);
+        this.parse();
     },
     collectData: function () {
         if (typeof this.ajax != "undefined") {
@@ -28,11 +41,11 @@ Template.prototype = {
             }
         }
     },
-    parse: function (sourceData) {
+    parse: function () {
         this.tempHtml = "";
-        for (var i = 0; i < sourceData.length; i++) {
+        for (var i = 0; i < this.tempData.length; i++) {
             var singleItem = this.elem;
-            var row = sourceData[i];
+            var row = this.tempData[i];
             var parentThis = this;
             var pureSingleItem = singleItem.replace(/\{\{(\w*)\}\}/g, function (a, b) {
                 var objectKey = b;
@@ -59,9 +72,9 @@ Template.prototype = {
             ev.preventDefault();
             tempSourceData = parentThis.individualFilter(tempSourceData, this.elements);
             document.querySelector(parentThis.tempId).innerHTML = " ";
-            parentThis.parse(tempSourceData);
+            parentThis.tempData = tempSourceData;
+            parentThis.parse();
         });
-
     },
     processForm: function (elements) {
         var parentThis = this;
@@ -89,5 +102,49 @@ Template.prototype = {
             }
         }
         return tempSourceData;
+    },
+    paginate: function () {
+        var startIndex = 0;
+        var endIndex = 0;
+        if (this.pagination.hasOwnProperty('wrapper') || this.pagination.hasOwnProperty('perpage')) {
+            var wrapper = document.querySelector(this.pagination.wrapper);
+            if (this.data.length > this.pagination.perpage) {
+                var pageId = 0;
+                for (var p = 0; p < this.data.length; p += this.pagination.perpage) {
+                    pageId += 1;
+                    var list = document.createElement('LI');
+                    var anchor = document.createElement('A');
+                    anchor.setAttribute('href', 'javascript://');
+                    anchor.setAttribute('data-page', p);
+                    var linkText = document.createTextNode(pageId);
+                    anchor.appendChild(linkText);
+                    list.appendChild(anchor);
+                    wrapper.appendChild(list);
+                }
+            } else {
+                this.index.end = this.data.length;
+
+            }
+            this.linkEvt();
+        }
+    },
+    linkEvt: function () {
+        var parentThis = this;
+        var paginateWrapper = document.querySelector(this.pagination.wrapper);
+        paginateWrapper.addEventListener('click', function (evt) {
+            if (evt.target.nodeName == 'A') {
+                var pagegId = evt.target.getAttribute('data-page');
+                parentThis.index.start = parseInt(pagegId);
+                parentThis.index.end = parseInt(parentThis.index.start) + parseInt(parentThis.pagination.perpage);
+                if (parentThis.index.end > parentThis.data.length) {
+                    parentThis.index.end = parentThis.data.length;
+                }
+                parentThis.tempData = parentThis.data.slice(parentThis.index.start, parentThis.index.end);
+                parentThis.parse();
+            }
+        });
     }
+
+
+
 }
